@@ -210,7 +210,7 @@ double *create_spectrum(double *data, int size)
 void process_data(double *data, int size)
 {
     complex *datac = double_array_to_complex_array(data,size);
-    fft(data, size);
+    fft(datac, size);
     double *datam = complex_array_to_module(datac,size);
     double *spectrum = create_spectrum(datam, N);
     print_arr(spectrum,G);
@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
 {
     //char *input_file_name = argv[1];
     //char *output_file_name = argv[2];
-    char *input_file_name = "/home/darkloner99/code/PJT trans/sounds/sound1.wav";
+    char *input_file_name = "/home/darkloner99/code/Projet-trans/sounds/sound1.wav";
     SNDFILE *input_file = open_input_file(input_file_name);
     //char *output_file_name = "/home/darkloner99/code/PJT trans/sounds/sound2.wav";
     //SNDFILE *output_file = open_output_file(output_file_name);
