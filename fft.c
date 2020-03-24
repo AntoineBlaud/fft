@@ -3,6 +3,10 @@
 #include <sndfile.h>
 #include <complex.h>
 #include <math.h>
+#include <time.h>
+#include <unistd.h>
+
+//compile  /usr/bin/gcc-7 -g /home/darkloner99/code/Projet-trans/fft.c -std=c99 -lm -lsndfile -o /home/darkloner99/code/Projet-trans/fft
 
 #define SWAP(a, b) \
     ctmp = (a);    \
@@ -28,7 +32,8 @@ SNDFILE *infile, *outfile;
 SF_INFO sfinfo_in;  // informations du fichier d'entrée
 SF_INFO sfinfo_out; // informations du fichier de sortie
 const int N = 1024;
-const int G = 1024/20;
+const int G = 100;
+const int H = 20;
 complex *TW;
 
 typedef struct // structure de retour pour la fonction sfx_mix_mono_read_double
@@ -42,35 +47,41 @@ double log2(double x)
 {
     return log10(x) / log10(2);
 }
-complex double_to_complex(double d){
-    return d + I*0.0;
+complex double_to_complex(double d)
+{
+    return d + I * 0.0;
 }
-complex * double_array_to_complex_array(double *data,int size){
-    complex datac[size];
-    for(int i=0;i<size;i++){
+complex *double_array_to_complex_array(double *data, int size, complex *datac)
+{
+    for (int i = 0; i < size; i++)
+    {
         datac[i] = double_to_complex(data[i]);
     }
-    return &datac;
+    return datac;
 }
-double compute_module(complex c){
-    return sqrt(pow(creal(c),2) + pow(cimag(c),2));
-}
-double * complex_array_to_module(complex *data,int size)
+double compute_module(complex c)
 {
-    complex datam[size];
-    for(int i=0;i<size;i++){
+    return sqrt(pow(creal(c), 2) + pow(cimag(c), 2));
+}
+double *complex_array_to_module(complex *data, int size, double *datam)
+{
+    for (int i = 0; i < size; i++)
+    {
         datam[i] = compute_module(data[i]);
     }
-    return &datam;
+    return datam;
 }
 
 void print_arr(double *arr, int size)
 {
     for (int i = 0; i < size; i++)
         printf("%lf\n", *(arr + i));
-
 }
 
+ 
+int msleep(unsigned int tms) {
+  return usleep(tms * 1000);
+}
 // La fonction ci-dessous permet de récupérer le fichier d'entrée
 SNDFILE *open_input_file(char *name)
 {
@@ -182,39 +193,87 @@ int fft(complex *data, int size)
             SWAP(data[j], data[i]);
     }
     for (int i = size - 1; i > 0; i--)
-        data[i] = data[i - 1];
+        data[i] = exp(data[i - 1]);
     data[0] = ctmp;
     return 0;
 }
 
-
-double *create_spectrum(double *data, int size)
+double *create_spectrum(double *data, int size, double *spectrum)
 {
-    double spectrum[G];
     double average = 0.0;
-    int cursor=0;
-    for(int i=0;i<size;i++){
+    int cursor = 0;
+    for (int i = 0; i < size; i++)
+    {
         // ici on fait une moyenne sur G valeurs
-        average+=data[i];
-        if(i%G==0 && i>0){
-            spectrum[cursor] = 20*log10(average/G);
-            cursor+=1;
-            average=0;
+        average += data[i];
+        if (i % (1024 / G) == 0 && i > 0)
+        {
+            spectrum[cursor] = average;
+            cursor += 1;
+            average = 0;
         }
-
     }
-    return &spectrum;
-
+    return spectrum;
 }
 
+void trace_spectrum(double *spectrum)
+{
+    double max = 0;
+    double min = 4200000000;
+    double average = 0;
+    for (int i = 0; i < G; i++)
+    {
+        average += spectrum[i];
+        if (spectrum[i] > max)
+            max = spectrum[i];
+        if (spectrum[i] < min)
+            min = spectrum[i];
+    }
+    if (max > average * 4)
+    {
+        max = average * 4;
+    }
+    double stepH = max / H;
+    int screen[G];
+    for (int i = 0; i < G; i++)
+    {
+        screen[i] = H - spectrum[i] / stepH;
+    }
+    for (int j = 0; j < H; j++)
+    {
+        for (int i = 0; i < G; i++)
+        {
+            if (j > screen[i])
+            {
+                printf("#");
+            }
+            else
+            {
+                printf(" ");
+            }
+        }
+        printf("\n");
+    }
+    for (int i = 0; i < G; i++)
+    {
+        printf("#");
+    }
+    printf("\n");
+    msleep(23);
+}
 void process_data(double *data, int size)
 {
-    complex *datac = double_array_to_complex_array(data,size);
+    complex datac[size];
+    double_array_to_complex_array(data, size, datac);
     fft(datac, size);
-    double *datam = complex_array_to_module(datac,size);
-    double *spectrum = create_spectrum(datam, N);
-    print_arr(spectrum,G);
-    
+    double datam[size];
+    complex_array_to_module(datac, size, datam);
+    double spectrum[G];
+    create_spectrum(datam, N, spectrum);
+
+    //print_arr(spectrum, G);
+    trace_spectrum(spectrum);
+    system("clear");
 }
 
 void browse_audio(SNDFILE *file_in, SNDFILE *file_out)
