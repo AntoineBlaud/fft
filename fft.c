@@ -218,7 +218,7 @@ double *create_spectrum(double *data, int size, double *spectrum)
 
 void trace_spectrum(double *spectrum)
 {
-    double max = 0;
+;    double max = 0;
     double min = 4200000000;
     double average = 0;
     for (int i = 0; i < G; i++)
@@ -259,7 +259,7 @@ void trace_spectrum(double *spectrum)
         printf("#");
     }
     printf("\n");
-    msleep(23);
+    //msleep(23);
 }
 void process_data(double *data, int size)
 {
@@ -304,4 +304,5 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
     browse_audio(input_file, NULL);
+    return EXIT_SUCCESS;
 }
