@@ -32,7 +32,7 @@ SNDFILE *infile, *outfile;
 SF_INFO sfinfo_in;  // informations du fichier d'entrée
 SF_INFO sfinfo_out; // informations du fichier de sortie
 const int N = 1024;
-const int G = 100;
+const int G = 128;
 const int H = 20;
 complex *TW;
 
@@ -61,7 +61,7 @@ complex *double_array_to_complex_array(double *data, int size, complex *datac)
 }
 double compute_module(complex c)
 {
-    return sqrt(pow(creal(c), 2) + pow(cimag(c), 2));
+    return exp(sqrt(pow(creal(c), 2) + pow(cimag(c), 2)) / 20);
 }
 double *complex_array_to_module(complex *data, int size, double *datam)
 {
@@ -77,10 +77,15 @@ void print_arr(double *arr, int size)
     for (int i = 0; i < size; i++)
         printf("%lf\n", *(arr + i));
 }
+void print_arrc(complex *arr, int size)
+{
+    for (int i = 0; i < size; i++)
+        printf("%f + I%f\n", creal(*(arr + i)), cimag(*(arr + i)));
+}
 
- 
-int msleep(unsigned int tms) {
-  return usleep(tms * 1000);
+int msleep(unsigned int tms)
+{
+    return usleep(tms * 1000);
 }
 // La fonction ci-dessous permet de récupérer le fichier d'entrée
 SNDFILE *open_input_file(char *name)
@@ -162,40 +167,30 @@ int bitrev(int inp, int numbits)
     return rev;
 }
 
-int fft(complex *data, int size)
+// Iterative FFT function to compute the DFT
+// of given coefficient vector
+void fftrec(complex *data, complex *result, int size, int log2n)
 {
-    int j, N2, Bpair, Bimpair, Bp = 1, N = size;
-    complex impair, pair, ctmp;
-    double log2n = log2(N);
-    for (int k = 0; k < log2n; k++)
+    if (size < 2)
     {
-        N2 = N / 2;
-        Bpair = 0;
-        for (int b = 0; b < Bp; b++)
-        {
-            Bimpair = Bpair + N2;
-            for (int n = 0; n < N2; n++)
-            {
-                impair = data[Bpair + n] + data[Bimpair + n];
-                pair = (data[Bpair + n] - data[Bimpair + n]) * TW[n * size / N];
-                data[Bpair + n] = pair;
-                data[Bimpair + n] = impair;
-            }
-            Bpair = Bpair + N;
-        }
-        Bp = Bp * 2;
-        N = N / 2;
+        result[0] = data[0];
+        return;
     }
-    for (int i = 0; i < size; i++)
+    complex ypair[size], yimpair[size], Fimpair[size], Fpair[size];
+    int n, k, N2;
+    N2 = size / 2;
+    for (n = 0; n < N2; n++)
     {
-        j = bitrev(i, log2n);
-        if (j > i)
-            SWAP(data[j], data[i]);
+        ypair[n] = data[n] + data[n + N2];
+        yimpair[n] = (data[n] - data[n + N2]) * cexp(-2 * I * M_PI * n / size);
     }
-    for (int i = size - 1; i > 0; i--)
-        data[i] = exp(data[i - 1]);
-    data[0] = ctmp;
-    return 0;
+    fftrec(ypair, Fpair, N2, log2n);
+    fftrec(yimpair, Fimpair, N2, log2n);
+    for (n = 0; n < N2; n++)
+    {
+        result[2 * n] = Fpair[n];
+        result[2 * n + 1] = Fimpair[n];
+    }
 }
 
 double *create_spectrum(double *data, int size, double *spectrum)
@@ -206,7 +201,7 @@ double *create_spectrum(double *data, int size, double *spectrum)
     {
         // ici on fait une moyenne sur G valeurs
         average += data[i];
-        if (i % (1024 / G) == 0 && i > 0)
+        if (i % (size / G) == 0 && i > 0)
         {
             spectrum[cursor] = average;
             cursor += 1;
@@ -216,9 +211,10 @@ double *create_spectrum(double *data, int size, double *spectrum)
     return spectrum;
 }
 
-void trace_spectrum(double *spectrum)
+void trace_spectrum(double *spectrum,int samplerate)
 {
-;    double max = 0;
+    ;
+    double max = 0;
     double min = 4200000000;
     double average = 0;
     for (int i = 0; i < G; i++)
@@ -228,10 +224,6 @@ void trace_spectrum(double *spectrum)
             max = spectrum[i];
         if (spectrum[i] < min)
             min = spectrum[i];
-    }
-    if (max > average * 4)
-    {
-        max = average * 4;
     }
     double stepH = max / H;
     int screen[G];
@@ -244,35 +236,33 @@ void trace_spectrum(double *spectrum)
         for (int i = 0; i < G; i++)
         {
             if (j > screen[i])
-            {
                 printf("#");
-            }
             else
-            {
                 printf(" ");
-            }
         }
         printf("\n");
     }
     for (int i = 0; i < G; i++)
-    {
         printf("#");
-    }
-    printf("\n");
+    printf("\n0");
+    for (int i = 0; i < G-5; i++)
+        printf(" ");
+    printf("%d\n",samplerate/2);
     //msleep(23);
 }
-void process_data(double *data, int size)
+void process_data(double *data, int size,int samplerate)
 {
     complex datac[size];
+    complex datacOut[size];
     double_array_to_complex_array(data, size, datac);
-    fft(datac, size);
+    fftrec(datac, datacOut, size, log2(N));
     double datam[size];
-    complex_array_to_module(datac, size, datam);
+    complex_array_to_module(datacOut, size, datam);
     double spectrum[G];
-    create_spectrum(datam, N, spectrum);
-
-    //print_arr(spectrum, G);
-    trace_spectrum(spectrum);
+    //print_arrc(datacOut, N);
+    size = size/2;
+    create_spectrum(datam, size, spectrum);
+    trace_spectrum(spectrum,samplerate);
     system("clear");
 }
 
@@ -287,8 +277,8 @@ void browse_audio(SNDFILE *file_in, SNDFILE *file_out)
     do
     {
         sfx = sfx_mix_mono_read_double(file_in, N);
-        process_data(sfx.data, sfx.frames_readed);
-    } while (sfx.frames_readed > 0);
+        process_data(sfx.data, sfx.frames_readed,samplerate);
+    } while (sfx.frames_readed == N);
 }
 
 int main(int argc, char *argv[])
