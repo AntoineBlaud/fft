@@ -8,6 +8,8 @@
 
 //compile  /usr/bin/gcc-7 -g /home/darkloner99/code/Projet-trans/fft.c -std=c99 -lm -lsndfile -o /home/darkloner99/code/Projet-trans/fft
 
+// Faire aussi affichage en fonction du volume
+
 #define SWAP(a, b) \
     ctmp = (a);    \
     (a) = (b);     \
@@ -61,7 +63,7 @@ complex *double_array_to_complex_array(double *data, int size, complex *datac)
 }
 double compute_module(complex c)
 {
-    return exp(sqrt(pow(creal(c), 2) + pow(cimag(c), 2)) / 20);
+    return sqrt(pow(creal(c), 2) + pow(cimag(c), 2));
 }
 double *complex_array_to_module(complex *data, int size, double *datam)
 {
@@ -217,7 +219,7 @@ void trace_spectrum(double *spectrum,int samplerate)
     double max = 0;
     double min = 4200000000;
     double average = 0;
-    for (int i = 0; i < G; i++)
+    for (int i = 1; i < G-1; i++)
     {
         average += spectrum[i];
         if (spectrum[i] > max)
@@ -225,11 +227,14 @@ void trace_spectrum(double *spectrum,int samplerate)
         if (spectrum[i] < min)
             min = spectrum[i];
     }
+    if(max<5)
+        max = 5;
     double stepH = max / H;
     int screen[G];
     for (int i = 0; i < G; i++)
     {
         screen[i] = H - spectrum[i] / stepH;
+
     }
     for (int j = 0; j < H; j++)
     {
@@ -243,12 +248,12 @@ void trace_spectrum(double *spectrum,int samplerate)
         printf("\n");
     }
     for (int i = 0; i < G; i++)
-        printf("#");
+        printf("-");
     printf("\n0");
     for (int i = 0; i < G-5; i++)
         printf(" ");
     printf("%d\n",samplerate/2);
-    //msleep(23);
+
 }
 void process_data(double *data, int size,int samplerate)
 {
@@ -263,7 +268,8 @@ void process_data(double *data, int size,int samplerate)
     size = size/2;
     create_spectrum(datam, size, spectrum);
     trace_spectrum(spectrum,samplerate);
-    system("clear");
+    printf("\e[1;1H\e[2J");
+    msleep(23);
 }
 
 void browse_audio(SNDFILE *file_in, SNDFILE *file_out)
@@ -285,7 +291,7 @@ int main(int argc, char *argv[])
 {
     //char *input_file_name = argv[1];
     //char *output_file_name = argv[2];
-    char *input_file_name = "/home/darkloner99/code/Projet-trans/sounds/sound1.wav";
+    char *input_file_name = "/home/darkloner99/code/Projet-trans/sounds/penta_large.wav";
     SNDFILE *input_file = open_input_file(input_file_name);
     //char *output_file_name = "/home/darkloner99/code/PJT trans/sounds/sound2.wav";
     //SNDFILE *output_file = open_output_file(output_file_name);
