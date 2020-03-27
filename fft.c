@@ -8,7 +8,6 @@
 
 //compile  /usr/bin/gcc-7 -g /home/darkloner99/code/Projet-trans/fft.c -std=c99 -lm -lsndfile -o /home/darkloner99/code/Projet-trans/fft
 
-// Faire aussi affichage en fonction du volume
 
 #define SWAP(a, b) \
     ctmp = (a);    \
@@ -56,9 +55,8 @@ complex double_to_complex(double d)
 complex *double_array_to_complex_array(double *data, int size, complex *datac)
 {
     for (int i = 0; i < size; i++)
-    {
         datac[i] = double_to_complex(data[i]);
-    }
+    
     return datac;
 }
 double compute_module(complex c)
@@ -68,9 +66,8 @@ double compute_module(complex c)
 double *complex_array_to_module(complex *data, int size, double *datam)
 {
     for (int i = 0; i < size; i++)
-    {
         datam[i] = compute_module(data[i]);
-    }
+    
     return datam;
 }
 
@@ -153,9 +150,7 @@ void twiddle(complex *TW, unsigned int size)
     complex phi = cexp(-2 * I * M_PI / size);
     TW[0] = 1;
     for (int i = 1; i < size; i++)
-    {
         TW[i] = TW[i - 1] * phi;
-    }
 }
 
 int bitrev(int inp, int numbits)
@@ -169,8 +164,6 @@ int bitrev(int inp, int numbits)
     return rev;
 }
 
-// Iterative FFT function to compute the DFT
-// of given coefficient vector
 void fftrec(complex *data, complex *result, int size, int log2n)
 {
     if (size < 2)
@@ -213,13 +206,11 @@ double *create_spectrum(double *data, int size, double *spectrum)
     return spectrum;
 }
 
-void trace_spectrum(double *spectrum,int samplerate)
+void trace_spectrum(double *spectrum, int samplerate)
 {
-    ;
-    double max = 0;
-    double min = 4200000000;
-    double average = 0;
-    for (int i = 1; i < G-1; i++)
+    double max = 0, min = 4200000000, average = 0;
+    int screen[G];
+    for (int i = 1; i < G - 1; i++)
     {
         average += spectrum[i];
         if (spectrum[i] > max)
@@ -227,49 +218,40 @@ void trace_spectrum(double *spectrum,int samplerate)
         if (spectrum[i] < min)
             min = spectrum[i];
     }
-    if(max<5)
-        max = 5;
+    if (max < 6)
+        max = 6;
     double stepH = max / H;
-    int screen[G];
+    // compute bar
     for (int i = 0; i < G; i++)
-    {
         screen[i] = H - spectrum[i] / stepH;
-
-    }
+    // print bar
     for (int j = 0; j < H; j++)
     {
         for (int i = 0; i < G; i++)
-        {
-            if (j > screen[i])
-                printf("#");
-            else
-                printf(" ");
-        }
+            (j > screen[i]) ? printf("#") : printf(" ");
         printf("\n");
     }
+    // print bottom limit
     for (int i = 0; i < G; i++)
         printf("-");
     printf("\n0");
-    for (int i = 0; i < G-5; i++)
+    // Print frequency band
+    for (int i = 0; i < G - 5; i++)
         printf(" ");
-    printf("%d\n",samplerate/2);
-
+    printf("%d\n", samplerate / 2);
 }
-void process_data(double *data, int size,int samplerate)
+void process_data(double *data, int size, int samplerate)
 {
-    complex datac[size];
-    complex datacOut[size];
+    complex datac[size], datacOut[size];
+    double datam[size], spectrum[G];
     double_array_to_complex_array(data, size, datac);
     fftrec(datac, datacOut, size, log2(N));
-    double datam[size];
     complex_array_to_module(datacOut, size, datam);
-    double spectrum[G];
-    //print_arrc(datacOut, N);
-    size = size/2;
+    // nysquist limit
+    size = size / 2;
     create_spectrum(datam, size, spectrum);
-    trace_spectrum(spectrum,samplerate);
+    trace_spectrum(spectrum, samplerate);
     printf("\e[1;1H\e[2J");
-    msleep(23);
 }
 
 void browse_audio(SNDFILE *file_in, SNDFILE *file_out)
@@ -280,25 +262,27 @@ void browse_audio(SNDFILE *file_in, SNDFILE *file_out)
     TW = malloc(sizeof(complex) * size);
     twiddle(TW, size);
     sfx.data = malloc(sizeof(double) * size);
+    clock_t previous, diff;
+    double msec;
+    int waiting = N * 1000 / samplerate;
     do
     {
+        previous = clock();
         sfx = sfx_mix_mono_read_double(file_in, N);
-        process_data(sfx.data, sfx.frames_readed,samplerate);
+        process_data(sfx.data, sfx.frames_readed, samplerate);
+        diff = clock() - previous;
+        // on suppose que msec >0 car sinon le programme fonctionnerai mal
+        msec = waiting - (diff * 1000 / CLOCKS_PER_SEC);
+        msleep(msec);
     } while (sfx.frames_readed == N);
 }
 
 int main(int argc, char *argv[])
 {
-    //char *input_file_name = argv[1];
-    //char *output_file_name = argv[2];
-    char *input_file_name = "/home/darkloner99/code/Projet-trans/sounds/penta_large.wav";
+    char *input_file_name = argv[1];
     SNDFILE *input_file = open_input_file(input_file_name);
-    //char *output_file_name = "/home/darkloner99/code/PJT trans/sounds/sound2.wav";
-    //SNDFILE *output_file = open_output_file(output_file_name);
     if (input_file == NULL)
-    {
         return EXIT_FAILURE;
-    }
     browse_audio(input_file, NULL);
     return EXIT_SUCCESS;
 }
