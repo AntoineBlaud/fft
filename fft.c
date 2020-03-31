@@ -346,8 +346,7 @@ void fftrec_test_performances(SNDFILE *file_in, SNDFILE *file_out)
 // #########################################################################################//
 int main(int argc, char *argv[])
 {
-    //char *input_file_name = argv[1];
-    char *input_file_name = "/home/darkloner99/code/Projet-trans/sounds/lapur.wav";
+    char *input_file_name = argv[1];
     SNDFILE *input_file = open_input_file(input_file_name);
     if (input_file == NULL)
         return EXIT_FAILURE;
