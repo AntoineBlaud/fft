@@ -6,8 +6,10 @@
 #include <time.h>
 #include <unistd.h>
 
-//compile  /usr/bin/gcc-7 -g /home/darkloner99/code/Projet-trans/fft.c -std=c99 -lm -lsndfile -o /home/darkloner99/code/Projet-trans/fft
-
+/**
+* @darkloner99
+* compile  /usr/bin/gcc-7 -g /home/darkloner99/code/Projet-trans/fft.c -std=c99 -lm -lsndfile -O3 -o /home/darkloner99/code/Projet-trans/fft
+**/
 
 #define SWAP(a, b) \
     ctmp = (a);    \
@@ -56,7 +58,7 @@ complex *double_array_to_complex_array(double *data, int size, complex *datac)
 {
     for (int i = 0; i < size; i++)
         datac[i] = double_to_complex(data[i]);
-    
+
     return datac;
 }
 double compute_module(complex c)
@@ -67,7 +69,7 @@ double *complex_array_to_module(complex *data, int size, double *datam)
 {
     for (int i = 0; i < size; i++)
         datam[i] = compute_module(data[i]);
-    
+
     return datam;
 }
 
@@ -163,7 +165,8 @@ int bitrev(int inp, int numbits)
     }
     return rev;
 }
-
+// #########################################################################################//
+// FFT functions
 void fftrec(complex *data, complex *result, int size, int log2n)
 {
     if (size < 2)
@@ -188,6 +191,18 @@ void fftrec(complex *data, complex *result, int size, int log2n)
     }
 }
 
+void dft(complex *data, complex *result, int size)
+{
+    for (int k = 0; k < size; k++)
+    {
+        for (int n = 0; n < size; n++)
+        {
+            result[k] += data[n] * cexp((-2 * M_PI * I * k * n) / size);
+        }
+    }
+}
+
+// #########################################################################################//
 double *create_spectrum(double *data, int size, double *spectrum)
 {
     double average = 0.0;
@@ -246,6 +261,7 @@ void process_data(double *data, int size, int samplerate)
     double datam[size], spectrum[G];
     double_array_to_complex_array(data, size, datac);
     fftrec(datac, datacOut, size, log2(N));
+    //dft(datac,datacOut,size);
     complex_array_to_module(datacOut, size, datam);
     // nysquist limit
     size = size / 2;
@@ -276,13 +292,68 @@ void browse_audio(SNDFILE *file_in, SNDFILE *file_out)
         msleep(msec);
     } while (sfx.frames_readed == N);
 }
+// #########################################################################################//
+// Performances test
+void dft_performances(double *data, int size, int samplerate)
+{
+    complex datac[size], datacOut[size];
+    double datam[size], spectrum[G];
+    double_array_to_complex_array(data, size, datac);
+    dft(datac, datacOut, size);
+}
 
+void fftrec_performances(double *data, int size, int samplerate)
+{
+    complex datac[size], datacOut[size];
+    double datam[size], spectrum[G];
+    double_array_to_complex_array(data, size, datac);
+    fftrec(datac, datacOut, size, log2(N));
+}
+
+void dft_test_performances(SNDFILE *file_in, SNDFILE *file_out)
+{
+    int samplerate = sfinfo_in.samplerate;
+    sf_count_t channels = sfinfo_in.channels;
+    int size = N * sfinfo_in.channels;
+    TW = malloc(sizeof(complex) * size);
+    sfx.data = malloc(sizeof(double) * size);
+    clock_t previous, diff;
+    float msec;
+    sfx = sfx_mix_mono_read_double(file_in, N);
+    previous = clock();
+    dft_performances(sfx.data, sfx.frames_readed, samplerate);
+    diff = clock() - previous;
+    msec = (diff * 1000.0 / CLOCKS_PER_SEC);
+    printf("dft %f ms\n", msec);
+}
+
+void fftrec_test_performances(SNDFILE *file_in, SNDFILE *file_out)
+{
+    int samplerate = sfinfo_in.samplerate;
+    sf_count_t channels = sfinfo_in.channels;
+    int size = N * sfinfo_in.channels;
+    TW = malloc(sizeof(complex) * size);
+    sfx.data = malloc(sizeof(double) * size);
+    clock_t previous, diff;
+    float msec;
+    sfx = sfx_mix_mono_read_double(file_in, N);
+    previous = clock();
+    fftrec_performances(sfx.data, sfx.frames_readed, samplerate);
+    diff = clock() - previous;
+    msec = (diff * 1000.0 / CLOCKS_PER_SEC);
+    printf("fftrec %f ms\n", msec);
+}
+// #########################################################################################//
 int main(int argc, char *argv[])
 {
-    char *input_file_name = argv[1];
+    //char *input_file_name = argv[1];
+    char *input_file_name = "/home/darkloner99/code/Projet-trans/sounds/lapur.wav";
     SNDFILE *input_file = open_input_file(input_file_name);
     if (input_file == NULL)
         return EXIT_FAILURE;
     browse_audio(input_file, NULL);
+    // ------------------ Performances ------------------- //
+    //dft_test_performances(input_file, NULL);
+    //fftrec_test_performances(input_file, NULL);
     return EXIT_SUCCESS;
 }
