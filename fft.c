@@ -291,6 +291,8 @@ void browse_audio(SNDFILE *file_in, SNDFILE *file_out)
         msec = waiting - (diff * 1000 / CLOCKS_PER_SEC);
         msleep(msec);
     } while (sfx.frames_readed == N);
+    free(TW);
+    free(sfx.data);
 }
 // #########################################################################################//
 // Performances test
@@ -325,6 +327,8 @@ void dft_test_performances(SNDFILE *file_in, SNDFILE *file_out)
     diff = clock() - previous;
     msec = (diff * 1000.0 / CLOCKS_PER_SEC);
     printf("dft %f ms\n", msec);
+    free(TW);
+    free(sfx.data);
 }
 
 void fftrec_test_performances(SNDFILE *file_in, SNDFILE *file_out)
@@ -342,6 +346,8 @@ void fftrec_test_performances(SNDFILE *file_in, SNDFILE *file_out)
     diff = clock() - previous;
     msec = (diff * 1000.0 / CLOCKS_PER_SEC);
     printf("fftrec %f ms\n", msec);
+    free(TW);
+    free(sfx.data);
 }
 // #########################################################################################//
 int main(int argc, char *argv[])
